@@ -47,7 +47,7 @@ export function ProviderUsage({ active }: { active: boolean }) {
                 return <div className="host-pulse-float-quota" key={`${window.label}:${index}`} title={quotaTitle(window, countdown.description)} aria-label={`${provider.label}${multipleAccounts ? ` ${ordinal}` : ""}: ${window.label}, ${window.usedPercent}% used, ${countdown.description}${stale ? ", stale" : ""}`}>
                   <div><span>{windowLabel(window.label)}</span><strong>{Number(window.usedPercent.toFixed(1))}%</strong></div>
                   <span className="host-pulse-float-quota-track" aria-hidden="true"><i style={{ width: `${Math.min(100, Math.max(0, window.usedPercent))}%`, background: window.usedPercent >= 95 ? "#ef4444" : window.usedPercent >= 80 ? "#eab308" : "#22c55e" }} /></span>
-                  <span className="host-pulse-float-quota-reset" title={countdown.description}><span aria-hidden="true">↻ </span>{countdown.text}</span>
+                  <span className="host-pulse-float-quota-reset" title={countdown.description}>{countdown.text}</span>
                 </div>;
               }) : <span className="host-pulse-float-usage-empty">{statusLabels[provider.status]}</span>}
             </div>

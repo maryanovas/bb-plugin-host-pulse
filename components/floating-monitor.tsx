@@ -49,7 +49,7 @@ function FloatingCard() {
   const drag = useRef<{ id: number; x: number; y: number; origin: MonitorPosition } | null>(null);
 
   const move = (next: MonitorPosition) => {
-    const size = container.current?.getBoundingClientRect() ?? { width: 252, height: 132 };
+    const size = container.current?.getBoundingClientRect() ?? { width: 268, height: 132 };
     const clamped = clampMonitorPosition(next, viewport(), size);
     positionRef.current = clamped;
     setPosition(clamped);

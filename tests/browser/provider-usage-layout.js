@@ -1,5 +1,5 @@
 // Run against an isolated BB Browser Automation session with Host Pulse installed:
-// bb browser-automation run <session> --script-file tests/browser/provider-usage-layout.js --timeout-ms 25000
+// bb browser-automation run <session> --script-file tests/browser/provider-usage-layout.js --script-host <host-id> --timeout-ms 25000
 const page = await browser.getPage("main");
 const future = new Date(Date.now() + (29 * 24 + 23) * 3_600_000).toISOString();
 const window = (label, usedPercent, resetsAt = future) => ({ label, usedPercent, resetsAt, cost: null });
@@ -61,6 +61,10 @@ async function inspect({ width, scale = 1, compact = false }) {
       list.scrollTop = 0;
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const errors = [];
+      const groups = [...list.children];
+      for (let i = 1; i < groups.length; i++) {
+        if (groups[i].getBoundingClientRect().top - groups[i - 1].getBoundingClientRect().bottom < 7.9) errors.push("Provider rows are too close");
+      }
       const title = document.createRange();
       title.selectNodeContents(root.querySelector(".host-pulse-float-handle span"));
       const titleBounds = title.getBoundingClientRect(), headerBounds = root.querySelector(".host-pulse-float-header").getBoundingClientRect();
@@ -72,10 +76,29 @@ async function inspect({ width, scale = 1, compact = false }) {
       const rows = [...root.querySelectorAll(".host-pulse-float-usage-row")].map(row => {
         const quotas = [...row.querySelectorAll(".host-pulse-float-quota")];
         const bounds = quotas.map(quota => quota.getBoundingClientRect());
+        const nameBounds = row.querySelector(".host-pulse-float-usage-name").getBoundingClientRect();
+        if (bounds.length) {
+          const stacked = bounds[0].top >= nameBounds.bottom - 1;
+          if (stacked ? bounds[0].top - nameBounds.bottom < 3.9 : bounds[0].left - nameBounds.right < 7.9) errors.push("Provider name is too close to its quotas");
+        }
+        for (let i = 1; i < bounds.length; i++) {
+          const sameLine = Math.abs(bounds[i].top - bounds[i - 1].top) < 1;
+          const gap = sameLine ? bounds[i].left - bounds[i - 1].right : bounds[i].top - bounds[i - 1].bottom;
+          if (gap < 7.9) errors.push("Quota cells are too close");
+        }
+        for (const quota of quotas) {
+          const countdown = quota.querySelector(".host-pulse-float-quota-reset");
+          if (countdown.getBoundingClientRect().top - quota.querySelector(".host-pulse-float-quota-track").getBoundingClientRect().bottom < 3.9) errors.push("Reset countdown is too close to its bar");
+        }
         if (compact && bounds.length) {
           if (new Set(bounds.map(rect => Math.round(rect.top))).size !== 1) errors.push("Quota windows wrapped at normal width");
           if (bounds.some(rect => rect.bottom > list.getBoundingClientRect().bottom + 1)) errors.push("Quota window clipped at normal width");
           if (Math.abs(row.querySelector(".host-pulse-float-usage-name").getBoundingClientRect().top - bounds[0].top) > 2) errors.push("Provider name detached from first quota line");
+          for (const quota of quotas) {
+            const heading = quota.firstElementChild;
+            const label = heading.firstElementChild.getBoundingClientRect(), value = heading.lastElementChild.getBoundingClientRect();
+            if (Math.abs(label.top - value.top) > 2 || value.left - label.right < 5.9) errors.push("Quota label and percentage are crowded or wrapped");
+          }
         }
         return { name: row.querySelector(".host-pulse-float-usage-name").textContent, windows: quotas.length };
       });
@@ -124,7 +147,7 @@ try {
   await page.waitForFunction(() => document.querySelectorAll(".host-pulse-float-quota").length === 6 &&
     document.querySelector(".host-pulse-float-metric strong")?.textContent === "100%" &&
     document.querySelector(".host-pulse-float-balance-value")?.textContent.includes("789.01"), { timeout: 10_000 });
-  for (const width of [1280, 390, 220, 180]) await inspect({ width, compact: width >= 390 });
+  for (const width of [1280, 390, 220, 180, 390]) await inspect({ width, compact: width >= 390 });
   for (const scale of [1.25, 1.5]) for (const width of [390, 220, 180]) await inspect({ width, scale });
   providers = [
     provider("a", "Codex", [window("Weekly limit", 100.1), window("Daily limit", 0, null), window("Monthly", 124), window("Extra model with a long quota label", 25)], "first-long-account-label@example.test"),
