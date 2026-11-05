@@ -31,10 +31,8 @@ export function ProviderUsage({ active }: { active: boolean }) {
   for (const provider of snapshot?.providers ?? []) counts.set(provider.label, (counts.get(provider.label) ?? 0) + 1);
   const ordinals = new Map<string, number>();
   const statusLabels = { not_installed: "Not installed", unauthenticated: "Sign in", expired: "Expired", error: "Unavailable", unknown: "–", ok: "No quota" };
-  return <section className="host-pulse-float-usage" aria-label="Provider usage">
-    <div className="host-pulse-float-usage-heading" title={[snapshot?.groupLabel, "Percentage of allowance used", snapshot?.checkedAt ? `Checked: ${new Date(snapshot.checkedAt).toLocaleString()}` : null].filter(Boolean).join("\n")}>
-      <span>Provider usage</span><span>{stale ? "Stale" : "used"}</span>
-    </div>
+  return <section className="host-pulse-float-usage" aria-label="Provider usage" title={[snapshot?.groupLabel, "Percentage of allowance used", snapshot?.checkedAt ? `Checked: ${new Date(snapshot.checkedAt).toLocaleString()}` : null].filter(Boolean).join("\n")}>
+    {stale && snapshot?.providers.length ? <div className="host-pulse-float-usage-status" role="status">Stale · last reading</div> : null}
     <div className="host-pulse-float-usage-list">
       {snapshot?.providers.map((provider) => {
         const ordinal = (ordinals.get(provider.label) ?? 0) + 1;
