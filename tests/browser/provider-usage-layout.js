@@ -4,12 +4,36 @@ const page = await browser.getPage("main");
 const future = new Date(Date.now() + (29 * 24 + 23) * 3_600_000).toISOString();
 const window = (label, usedPercent, resetsAt = future) => ({ label, usedPercent, resetsAt, cost: null });
 const provider = (id, label, windows, accountLabel = null) => ({ id, label, windows, accountLabel, planLabel: null, status: "ok" });
+const metrics = {
+  timestamp: new Date().toISOString(), refreshIntervalMs: 5000,
+  host: { hostname: "layout-test", platform: "linux", release: "test", arch: "x64", uptimeSeconds: 1000 },
+  cpu: { model: "Test CPU", cores: 16, speedMHz: 3000, usagePercent: 100, perCoreUsagePercent: Array(16).fill(100), loadAverage: [16, 16, 16] },
+  memory: { totalBytes: 32 * 1024 ** 3, usedBytes: 32 * 1024 ** 3, freeBytes: 0, availableBytes: 0, cachedBytes: 0, buffersBytes: 0, swapTotalBytes: 0, swapUsedBytes: 0, usagePercent: 100 },
+  disk: { mount: "/", totalBytes: 1024 ** 4, usedBytes: 1024 ** 4, freeBytes: 0, usagePercent: 100 }, diskIo: null,
+  network: { interface: "test0", rxBytesPerSecond: 1023.9 * 1024 ** 2, txBytesPerSecond: 1023.9 * 1024 ** 2, rxTotalBytes: 1024 ** 4, txTotalBytes: 1024 ** 4 },
+  processes: { available: true, total: 100, running: 16, top: [],
+    topCpu: { pid: 4194303, name: "long-process-name-for-layout", cpuPercent: 100 },
+    topMemory: { pid: 4194303, name: "long-memory-process-name", rssBytes: 31.99 * 1024 ** 3 },
+  },
+  runtime: { pid: 123, nodeVersion: "v26.0.0", processUptimeSeconds: 1000, rssBytes: 1024 ** 3, heapUsedBytes: 1024 ** 2, heapTotalBytes: 2 * 1024 ** 2, externalBytes: 0 },
+  health: { status: "critical", issues: [] }, history: [],
+};
+const balance = { status: "ok", checkedAt: Date.now(), refreshIntervalMs: 10_000, isAvailable: true, balances: [
+  { currency: "USD", total_balance: "123.45", topped_up_balance: "123.45", granted_balance: "0" },
+  { currency: "CNY", total_balance: "789.01", topped_up_balance: "789.01", granted_balance: "0" },
+] };
 let providers = [
   provider("codex", "Codex", [window("Weekly limit", 39)]),
   provider("claude", "Claude Code", [window("Five-hour limit", 0, null), window("Weekly limit", 83)]),
   provider("opencode", "opencode", [window("Five-hour limit", 12.5), window("Weekly limit", 99.9), window("Monthly", 100)]),
 ];
 const fixture = request => {
+  const data = request.url().includes("/plugins/host-pulse/rpc/metrics_snapshot") ? metrics
+    : request.url().includes("/plugins/host-pulse/rpc/deepseek_balance_snapshot") ? balance : null;
+  if (data) {
+    void request.respond({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, result: data }) }).catch(() => {});
+    return;
+  }
   if (!request.url().includes("/plugins/host-pulse/rpc/provider_usage_snapshot")) {
     void request.continue().catch(() => {});
     return;
@@ -37,6 +61,10 @@ async function inspect({ width, scale = 1, compact = false }) {
       list.scrollTop = 0;
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const errors = [];
+      const title = document.createRange();
+      title.selectNodeContents(root.querySelector(".host-pulse-float-handle span"));
+      const titleBounds = title.getBoundingClientRect(), headerBounds = root.querySelector(".host-pulse-float-header").getBoundingClientRect();
+      if (titleBounds.top < headerBounds.top - 1 || titleBounds.bottom > headerBounds.bottom + 1) errors.push("Monitor title clipped");
       for (const element of [root, list, ...root.querySelectorAll(".host-pulse-float-usage-windows, .host-pulse-float-quota")]) {
         if (element.scrollWidth > element.clientWidth + 1) errors.push(`Horizontal overflow: ${element.className}`);
       }
@@ -52,7 +80,8 @@ async function inspect({ width, scale = 1, compact = false }) {
         return { name: row.querySelector(".host-pulse-float-usage-name").textContent, windows: quotas.length };
       });
       // Inspect actual text rectangles, including content revealed by scrolling.
-      for (const scroll of [0, list.scrollHeight]) {
+      const scrollPositions = Array.from({ length: Math.ceil(list.scrollHeight / list.clientHeight) + 1 }, (_, i) => i * list.clientHeight);
+      for (const scroll of scrollPositions) {
         list.scrollTop = scroll;
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         const textRects = [];
@@ -92,9 +121,11 @@ async function inspect({ width, scale = 1, compact = false }) {
 
 try {
   await page.reload({ waitUntil: "domcontentloaded" });
-  await page.waitForFunction(() => document.querySelectorAll(".host-pulse-float-quota").length === 6, { timeout: 10_000 });
+  await page.waitForFunction(() => document.querySelectorAll(".host-pulse-float-quota").length === 6 &&
+    document.querySelector(".host-pulse-float-metric strong")?.textContent === "100%" &&
+    document.querySelector(".host-pulse-float-balance-value")?.textContent.includes("789.01"), { timeout: 10_000 });
   for (const width of [1280, 390, 220, 180]) await inspect({ width, compact: width >= 390 });
-  for (const width of [390, 220]) await inspect({ width, scale: 1.25 });
+  for (const scale of [1.25, 1.5]) for (const width of [390, 220, 180]) await inspect({ width, scale });
   providers = [
     provider("a", "Codex", [window("Weekly limit", 100.1), window("Daily limit", 0, null), window("Monthly", 124), window("Extra model with a long quota label", 25)], "first-long-account-label@example.test"),
     provider("b", "Codex", [window("Five-hour limit", 100), window("Weekly limit", 22)], "second@example.test"),
@@ -103,7 +134,7 @@ try {
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => document.querySelector(".host-pulse-float-usage")?.textContent.includes("second@example.test"), { timeout: 10_000 });
   for (const width of [390, 220, 180]) await inspect({ width });
-  await inspect({ width: 390, scale: 1.25 });
+  for (const scale of [1.25, 1.5]) for (const width of [390, 220, 180]) await inspect({ width, scale });
 } finally {
   await page.setRequestInterception(false);
   page.off("request", fixture);
