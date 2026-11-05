@@ -6,7 +6,7 @@ import { quotaResetCountdown } from "../lib/quota-reset";
 type UsageWindow = ProviderUsageSnapshot["providers"][number]["windows"][number];
 
 function windowLabel(label: string) {
-  return label.replace(/^five-hour limit\b/i, "5h").replace(/^weekly(?: limit)?\b/i, "7d").replace(/^daily limit\b/i, "24h");
+  return label.replace(/^five-hour limit\b/i, "5h").replace(/^weekly(?: limit)?\b/i, "7d").replace(/^daily limit\b/i, "24h").replace(/^monthly(?: limit)?\b/i, "1mo");
 }
 function quotaTitle(window: UsageWindow, countdown: string) {
   const reset = window.resetsAt ? new Date(window.resetsAt) : null;

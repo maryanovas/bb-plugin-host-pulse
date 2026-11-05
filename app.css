@@ -48,14 +48,15 @@
 .host-pulse-float-usage { border-top: 1px solid var(--sidebar-border, #333840); padding: 3px 10px 5px; }
 .host-pulse-float-usage-heading { display: flex; justify-content: space-between; gap: 6px; margin-bottom: 2px; font-size: 9px; line-height: 1.2; color: var(--muted-foreground, #9da4ae); }
 .host-pulse-float-usage-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; max-height: 116px; overflow-y: auto; }
-.host-pulse-float-usage-row { display: flex; align-items: center; gap: 8px; min-height: 18px; }
+.host-pulse-float-usage-row { display: flex; align-items: flex-start; gap: 4px; min-height: 18px; }
 .host-pulse-float-usage-name { flex: 0 0 48px; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 10px; }
 .host-pulse-float-usage-account { margin: 0 0 3px; font-size: 9px; line-height: 1.2; overflow-wrap: anywhere; color: var(--muted-foreground, #9da4ae); }
-.host-pulse-float-usage-windows { display: flex; flex: 1; flex-wrap: wrap; justify-content: flex-end; gap: 4px 10px; min-width: 0; }
-.host-pulse-float-quota { flex: 0 1 calc(50% - 5px); min-width: min(100%, 6em); }
-.host-pulse-float-quota > div { display: flex; align-items: baseline; gap: 4px; justify-content: space-between; font-size: 10px; line-height: 1.2; }
+/* Three compact windows fit the standard card; larger text wraps to fewer columns. */
+.host-pulse-float-usage-windows { display: grid; flex: 1; grid-template-columns: repeat(auto-fit, minmax(min(100%, 5em), 1fr)); gap: 4px 6px; min-width: 0; }
+.host-pulse-float-quota { min-width: 0; }
+.host-pulse-float-quota > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 4px; justify-content: space-between; font-size: 10px; line-height: 1.2; }
 .host-pulse-float-quota > div > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted-foreground, #9da4ae); }
-.host-pulse-float-quota strong { font-weight: 600; white-space: nowrap; }
+.host-pulse-float-quota strong { margin-left: auto; font-weight: 600; white-space: nowrap; }
 .host-pulse-float-quota-track { display: block; height: 2px; margin-top: 2px; overflow: hidden; border-radius: 2px; background: var(--sidebar-border, #333840); }
 .host-pulse-float-quota-track i { display: block; height: 100%; border-radius: inherit; }
 .host-pulse-float-quota-reset { display: block; margin-top: 2px; color: var(--muted-foreground, #9da4ae); font-size: 9px; line-height: 1.4; text-align: right; white-space: nowrap; }
@@ -77,6 +78,8 @@
 @container host-pulse-monitor (max-width: 210px) {
   .host-pulse-float-metric { grid-template-columns: minmax(0, 1fr); row-gap: 1px; }
   .host-pulse-float-metric > strong { text-align: left; }
+  .host-pulse-float-usage-row { flex-direction: column; align-items: stretch; gap: 2px; }
+  .host-pulse-float-usage-name { flex-basis: auto; }
 }
 @media (pointer: coarse) {
   .host-pulse-float-handle, .host-pulse-float-action { min-height: 36px; }
