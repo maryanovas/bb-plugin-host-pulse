@@ -22,11 +22,12 @@ const balance = { status: "ok", checkedAt: Date.now(), refreshIntervalMs: 10_000
   { currency: "USD", total_balance: "123.45", topped_up_balance: "123.45", granted_balance: "0" },
   { currency: "CNY", total_balance: "789.01", topped_up_balance: "789.01", granted_balance: "0" },
 ] };
-let providers = [
+const standardProviders = [
   provider("codex", "Codex", [window("Weekly limit", 39)]),
   provider("claude", "Claude Code", [window("Five-hour limit", 0, null), window("Weekly limit", 83)]),
   provider("opencode", "opencode", [window("Five-hour limit", 12.5), window("Weekly limit", 99.9), window("Monthly", 100)]),
 ];
+let providers = standardProviders;
 const fixture = request => {
   const data = request.url().includes("/plugins/host-pulse/rpc/metrics_snapshot") ? metrics
     : request.url().includes("/plugins/host-pulse/rpc/deepseek_balance_snapshot") ? balance : null;
@@ -48,9 +49,9 @@ const script = await page.evaluateOnNewDocument(() => {
   localStorage.setItem("host-pulse-floating-monitor-v1", JSON.stringify({ version: 1, visible: true, position: { x: 8, y: 8 } }));
 });
 
-async function inspect({ width, scale = 1, compact = false }) {
-  await page.setViewport({ width, height: 900 });
-  const report = await page.evaluate(async ({ scale, compact }) => {
+async function inspect({ width, scale = 1, compact = false, touch = false }) {
+  await page.setViewport({ width, height: 900, isMobile: touch, hasTouch: touch });
+  const report = await page.evaluate(async ({ scale, compact, touch }) => {
     const root = document.querySelector(".host-pulse-float");
     const nodes = [root, ...root.querySelectorAll("*")];
     const styles = nodes.map(node => node.getAttribute("style"));
@@ -61,6 +62,13 @@ async function inspect({ width, scale = 1, compact = false }) {
       list.scrollTop = 0;
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const errors = [];
+      if (matchMedia("(pointer: coarse)").matches !== touch) errors.push("Unexpected pointer mode");
+      const cardBounds = root.getBoundingClientRect();
+      for (const button of root.querySelectorAll(".host-pulse-float-header button")) {
+        const bounds = button.getBoundingClientRect();
+        if (bounds.left < cardBounds.left || bounds.right > cardBounds.right) errors.push("Monitor control clipped");
+        if (touch && (bounds.width < 36 || bounds.height < 36)) errors.push("Touch control too small");
+      }
       const groups = [...list.children];
       for (let i = 1; i < groups.length; i++) {
         if (groups[i].getBoundingClientRect().top - groups[i - 1].getBoundingClientRect().bottom < 7.9) errors.push("Provider rows are too close");
@@ -133,16 +141,17 @@ async function inspect({ width, scale = 1, compact = false }) {
       }
       const lastQuota = [...root.querySelectorAll(".host-pulse-float-quota")].at(-1);
       if (lastQuota && lastQuota.getBoundingClientRect().bottom > list.getBoundingClientRect().bottom + 1) errors.push("Last quota cannot be reached by scrolling");
-      return { width: innerWidth, scale, compact, rows, quotaCount, listHeight: list.clientHeight, errors };
+      return { width: innerWidth, scale, compact, touch, rows, quotaCount, listHeight: list.clientHeight, errors };
     } finally {
       nodes.forEach((node, i) => { if (styles[i] === null) node.removeAttribute("style"); else node.setAttribute("style", styles[i]); });
     }
-  }, { scale, compact });
+  }, { scale, compact, touch });
   console.log(JSON.stringify(report));
   if (report.errors.length) throw new Error(report.errors.join("; "));
 }
 
 try {
+  await page.setViewport({ width: 1280, height: 900, isMobile: false, hasTouch: false });
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => document.querySelectorAll(".host-pulse-float-quota").length === 6 &&
     document.querySelector(".host-pulse-float-metric strong")?.textContent === "100%" &&
@@ -158,10 +167,19 @@ try {
   await page.waitForFunction(() => document.querySelector(".host-pulse-float-usage")?.textContent.includes("second@example.test"), { timeout: 10_000 });
   for (const width of [390, 220, 180]) await inspect({ width });
   for (const scale of [1.25, 1.5]) for (const width of [390, 220, 180]) await inspect({ width, scale });
+  // Coarse pointers reserve larger buttons. That can crowd the title/status even
+  // when the same viewport passes with a mouse, especially with enlarged text.
+  providers = standardProviders;
+  await page.setViewport({ width: 390, height: 900, isMobile: true, hasTouch: true });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForFunction(() => document.querySelector(".host-pulse-float-usage")?.textContent.includes("opencode") &&
+    document.querySelectorAll(".host-pulse-float-quota").length === 6, { timeout: 10_000 });
+  for (const width of [390, 320, 220, 190, 180, 390]) await inspect({ width, touch: true, compact: width >= 320 });
+  for (const scale of [1.25, 1.5]) for (const width of [390, 320, 220, 190, 180]) await inspect({ width, scale, touch: true });
 } finally {
   await page.setRequestInterception(false);
   page.off("request", fixture);
   await page.removeScriptToEvaluateOnNewDocument(script.identifier);
-  await page.setViewport({ width: 1280, height: 900 });
+  await page.setViewport({ width: 1280, height: 900, isMobile: false, hasTouch: false });
   await page.reload({ waitUntil: "domcontentloaded" });
 }

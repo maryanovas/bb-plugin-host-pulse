@@ -16,9 +16,10 @@
   font-variant-numeric: tabular-nums;
   isolation: isolate;
 }
-.host-pulse-float-header { display: flex; align-items: center; gap: 2px; padding: 2px 6px; border-bottom: 1px solid var(--sidebar-border, #333840); }
+/* Large touch controls must wrap before they squeeze the title into the status. */
+.host-pulse-float-header { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 2px 6px; border-bottom: 1px solid var(--sidebar-border, #333840); }
 .host-pulse-float-handle, .host-pulse-float-action { display: flex; align-items: center; justify-content: center; border: 0; border-radius: 5px; background: transparent; color: inherit; padding: 0; }
-.host-pulse-float-handle { flex: 1; justify-content: flex-start; gap: 6px; min-width: 40px; min-height: 24px; height: auto; font-weight: 600; cursor: grab; touch-action: none; user-select: none; }
+.host-pulse-float-handle { flex: 1; justify-content: flex-start; gap: 6px; min-width: min-content; min-height: 24px; height: auto; font-weight: 600; cursor: grab; touch-action: none; user-select: none; }
 .host-pulse-float[data-dragging] .host-pulse-float-handle { cursor: grabbing; }
 .host-pulse-float-action { width: 26px; height: 24px; flex-shrink: 0; cursor: pointer; }
 .host-pulse-float-action:hover { background: var(--sidebar-accent, #ffffff12); }
