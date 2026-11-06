@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { definePluginApp, experimental_Icon as Icon, experimental_usePluginId as usePluginId, type ExperimentalSidebarFooterDisclosureProps } from "@get-bb/plugin-sdk/app";
+import { definePluginApp, experimental_Icon as Icon, experimental_usePluginId as usePluginId } from "@get-bb/plugin-sdk/app";
 import type { ServerSnapshot } from "./server";
 import { useServerSnapshot } from "./hooks/use-server-snapshot";
 import { PressureNotifications } from "./components/pressure-notifications";
@@ -185,7 +185,7 @@ function ServerMark({ className }: { className?: string }) {
   return <HugeiconsIcon icon={ServerIcon} className={className} strokeWidth={2} style={{ opacity: 0.8 }} aria-hidden="true" />;
 }
 
-function StatusDisclosure({ dismiss }: ExperimentalSidebarFooterDisclosureProps) {
+function ServerDetailsContent({ dismiss }: { dismiss: () => void }) {
   const { container, active, snapshot, error, reload, reloading } = useServerSnapshot();
   const { visible } = useFloatingMonitor();
   return (
@@ -209,9 +209,7 @@ function StatusDisclosure({ dismiss }: ExperimentalSidebarFooterDisclosureProps)
   );
 }
 
-// A footer disclosure lives inside the sidebar. Its controller cannot reveal
-// that content when the mobile drawer or desktop sidebar is hidden, so global
-// launchers use this independent dialog with the same status content.
+// The floating card and alerts can open details even when the sidebar is hidden.
 function ServerDetailsDialog() {
   const [open, setOpen] = useState(false);
   const pluginId = usePluginId();
@@ -232,7 +230,7 @@ function ServerDetailsDialog() {
           <Dialog.Title>Server status</Dialog.Title>
           <Dialog.Close className="host-pulse-details-close" aria-label="Close server details">×</Dialog.Close>
         </div>
-        <div className="host-pulse-details-body"><StatusDisclosure dismiss={() => setOpen(false)} /></div>
+        <div className="host-pulse-details-body"><ServerDetailsContent dismiss={() => setOpen(false)} /></div>
       </Dialog.Content>
     </Dialog.Portal>
   </Dialog.Root>;
@@ -244,10 +242,10 @@ export default definePluginApp((app) => {
   app.slots.experimental_appOverlay({ id: "floating-monitor", component: FloatingMonitor });
   app.slots.experimental_appOverlay({ id: "server-details", component: ServerDetailsDialog });
   app.experimental_sidebarFooter.register({
-    kind: "disclosure",
+    kind: "action",
     id: "status",
-    label: "Server status",
+    label: "Host Pulse",
     icon: "Server",
-    component: StatusDisclosure,
+    onActivate: () => floatingMonitor.setVisible(!floatingMonitor.getSnapshot().visible),
   });
 });

@@ -140,7 +140,7 @@ function FloatingCard() {
       </button>
       <span className="host-pulse-float-status" title={error ?? (snapshot ? `${snapshot.host.hostname} · ${snapshot.timestamp}` : "Waiting for server data")} role="status">{error ? "Retrying" : snapshot ? "Live" : "Loading"}</span>
       <button type="button" className="host-pulse-float-action" aria-label="Open server details" title="Open server details" onClick={openServerStatus}><Icon name="ArrowUpRight" className="size-3.5" aria-hidden /></button>
-      <button type="button" className="host-pulse-float-action" aria-label="Hide floating monitor" title="Hide · reopen with Pin monitor in Server status" onClick={() => floatingMonitor.setVisible(false)}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
+      <button type="button" className="host-pulse-float-action" aria-label="Hide floating monitor" title="Hide · reopen with Host Pulse in the sidebar footer" onClick={() => floatingMonitor.setVisible(false)}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
     </div>
     <div className="host-pulse-float-metrics">
       <Metric label="CPU" value={snapshot?.cpu.usagePercent ?? null} title="Processor usage across all cores" />

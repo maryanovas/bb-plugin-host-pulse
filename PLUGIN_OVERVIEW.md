@@ -1,6 +1,6 @@
 ## What you get
 
-Open **Server status** in the sidebar footer, then choose **Pin monitor**. A compact floating card stays visible across BB pages, threads and projects. Drag its title with a mouse or finger, or use the arrow keys. Its position and visibility are saved in your browser.
+Click **Host Pulse** in the sidebar footer to open the floating monitor in one click; click it again to hide the card. The compact card stays visible across BB pages, threads and projects. Drag its title with a mouse or finger, or use the arrow keys. Its position and visibility are saved in your browser.
 
 See overall CPU and memory use, one bar per logical core, root-disk space and activity, IOPS, download/upload speed, and the current CPU and memory process leaders. Open the details panel for charts, swap, load averages and uptime.
 

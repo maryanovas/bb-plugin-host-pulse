@@ -1,12 +1,12 @@
 # Host Pulse
 
-See CPU, memory, disk, and processes on the BB server from the footer or a draggable floating monitor.
+See CPU, memory, disk, and processes on the BB server in a draggable floating monitor.
 
 ![Floating Host Pulse monitor](assets/monitor.jpg)
 
 ![Server details](assets/details.jpg)
 
-Status sits in the sidebar footer. Open it while you work. An optional background monitor can toast when CPU or memory stays high. The two collectors do not share a timer.
+The **Host Pulse** button in the sidebar footer opens the monitor in one click. An optional background monitor can toast when CPU or memory stays high. The two collectors do not share a timer.
 
 Host Pulse reads system counters. It does not change server settings, enable swap, kill processes, or call a monitoring service. It watches the BB server host only, not other enrolled machines or a container's cgroup limit.
 
@@ -14,9 +14,9 @@ Requires BB 0.48.1 and Plugin SDK 0.6.104 or newer. Detailed network rates, disk
 
 ## Floating monitor
 
-1. Open **Server status** in the sidebar footer and click **Pin monitor**.
+1. Click **Host Pulse** in the sidebar footer to show the floating monitor immediately.
 2. Drag the **Host Pulse** title with a mouse or finger. With keyboard focus on the title, arrow keys move it 10 pixels; Shift + arrows move it 1 pixel. Escape cancels an active drag.
-3. Use the arrow button for full details in a separate dialog, including when the sidebar is hidden. Escape or its close button dismisses the dialog. The card's close button hides the card; **Pin monitor** opens it again.
+3. Use the arrow button for full details in a separate dialog, including when the sidebar is hidden. Escape or its close button dismisses the dialog. The card's close button hides the card. **Host Pulse** in the footer toggles the card: click to show it, click again to hide it. Reopening restores its saved position.
 
 The compact card shows:
 
@@ -156,7 +156,7 @@ bb plugin reload host-pulse
 
 `bb plugin types --check` reports an SDK mismatch without writing. Tests live in `tests/`. They cover parsing, hide/show races, pressure state, and alert copy.
 
-For a UI change, open Status, wait for two samples, try a 390px width, then hide the tab and confirm polling stops. Use `bb host-pulse test-alert` instead of overloading the server.
+For a UI change, click Host Pulse in the footer, wait for two samples, try a 390px width, then hide the tab and confirm polling stops. Check the details dialog through the card's arrow button. Use `bb host-pulse test-alert` instead of overloading the server.
 
 `tests/browser/provider-usage-layout.js` runs in an isolated BB Browser Automation session on a BB page with Host Pulse installed. It intercepts responses with fixed usage, host-metric and balance fixtures: three quota windows, multiple accounts, 100% host usage, large network rates, long process names/PIDs and two currencies. Its 36 scenarios check minimum spacing, text overlap, title clipping and scroll access at widths from 180px to 1280px and text sizes up to 150%, including returning to a wider viewport without reloading. Touch emulation also checks that the larger controls stay reachable without crowding the title or status. The fixture data never reaches the server or creates load:
 
