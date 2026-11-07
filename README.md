@@ -30,7 +30,7 @@ The compact card shows:
 
 It stays visible across BB pages, threads and projects. Visibility and position are saved in this browser's local storage and restored after reload; other devices have their own preferences. If storage is blocked it works until the page reloads. Resizing keeps the card in view. On very narrow cards, metric and provider names stack above their values; quota windows wrap as needed so text stays readable without horizontal scrolling. Large numbers, network rates, process values and balances also wrap when space is tight or text is enlarged. Header controls wrap when necessary to keep the title and status readable alongside larger touch buttons. The card floats within BB, not above other operating-system windows or BB's modal dialogs.
 
-The panel and card share cached readings and in-flight requests. Reopening a view keeps the existing refresh or retry deadline, so showing a cached reading does not postpone the next update. A successful manual retry in details also updates the card immediately, even if it was waiting on a longer retry delay. Hidden views receive the latest shared reading when shown again. Pinning uses the dashboard refresh interval; hiding both stops dashboard polling, as does hiding the browser tab. It does not enable background monitoring. On connection errors the card marks its numbers as the last reading and retries with backoff. CPU, disk I/O, network rates and the current CPU process need two samples after a cold start.
+The panel and card share cached readings and in-flight requests. Reopening a view keeps the existing refresh or retry deadline, so showing a cached reading does not postpone the next update. A successful manual retry in details also updates the card immediately, even if it was waiting on a longer retry delay. Hidden views receive the latest shared reading when shown again, including while the next request is pending or if it fails. Pinning uses the dashboard refresh interval; hiding both stops dashboard polling, as does hiding the browser tab. It does not enable background monitoring. On connection errors the card marks its numbers as the last reading and retries with backoff. CPU, disk I/O, network rates and the current CPU process need two samples after a cold start.
 
 ### Provider usage integration
 
@@ -168,6 +168,12 @@ bb browser-automation run <session> --script-file tests/browser/provider-usage-l
 
 ```sh
 bb browser-automation run <session> --script-file tests/browser/floating-monitor-refresh.js --script-host <host-id> --timeout-ms 25000
+```
+
+`tests/browser/hidden-reading-recovery.js` verifies all three data sources after a successful response arrives while the tab is hidden. The next request is held, then fails; the card must display the newer retained server, quota and balance readings both while waiting and with the failure warnings. The isolated browser's wall clock advances only while polling is paused to expire the caches without changing production intervals:
+
+```sh
+bb browser-automation run <session> --script-file tests/browser/hidden-reading-recovery.js --script-host <host-id> --timeout-ms 20000
 ```
 
 ## Troubleshooting

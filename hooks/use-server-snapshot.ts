@@ -25,6 +25,9 @@ export function useServerSnapshot() {
     let pageHidden = false;
     const poller = createVisiblePoller({
       load: () => {
+        // A request can finish while this view is hidden. Restore its latest
+        // reading before a new attempt, which may be slow or fail.
+        setSnapshot(source.snapshot());
         const force = forceRefresh.current;
         forceRefresh.current = false;
         return source.load(() => rpc.call(force ? "metrics_refresh" : "metrics_snapshot", null), force);

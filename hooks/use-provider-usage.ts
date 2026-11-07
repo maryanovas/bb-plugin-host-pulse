@@ -13,7 +13,11 @@ export function useProviderUsage(active: boolean) {
   useEffect(() => {
     if (!active) return;
     const poller = createVisiblePoller({
-      load: () => source.load(() => rpc.call("provider_usage_snapshot", null)),
+      load: () => {
+        // The shared cache may have advanced while this view was hidden.
+        setSnapshot(source.snapshot());
+        return source.load(() => rpc.call("provider_usage_snapshot", null));
+      },
       receive(value) { setSnapshot(value); setError(false); },
       error() { setError(true); },
       intervalMs: (value) => value.refreshIntervalMs,
