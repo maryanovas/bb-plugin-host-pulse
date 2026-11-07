@@ -17,6 +17,7 @@ export function useDeepseekBalance(active: boolean) {
       receive(value) { setSnapshot(value); setError(false); },
       error() { setError(true); },
       intervalMs: (value) => value.refreshIntervalMs,
+      nextAttemptAt: source.nextAttemptAt,
     });
     poller.setActive(true);
     return () => poller.dispose();

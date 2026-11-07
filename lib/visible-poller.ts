@@ -4,6 +4,7 @@ export function createVisiblePoller<T>(options: {
   receive: (value: T) => void;
   error: (error: unknown) => void;
   intervalMs: (value: T) => number;
+  nextAttemptAt?: () => number;
 }) {
   let active = false;
   let disposed = false;
@@ -33,7 +34,12 @@ export function createVisiblePoller<T>(options: {
       pending = false;
       if (active && !disposed) {
         // A pre-hide request may finish after reopening. Discard it and fetch fresh.
-        schedule(requestGeneration === generation ? delay : 0);
+        const sharedDeadline = options.nextAttemptAt?.();
+        // A cached response can be almost due already. Honor the shared source's
+        // deadline, including retry backoff, rather than waiting a full interval.
+        const remaining = sharedDeadline === undefined || !Number.isFinite(sharedDeadline)
+          ? delay : Math.min(60_000, Math.max(0, sharedDeadline - Date.now()));
+        schedule(requestGeneration === generation ? remaining : 0);
       }
     }
   }

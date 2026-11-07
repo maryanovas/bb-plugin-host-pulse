@@ -211,3 +211,75 @@ test("a forced snapshot load bypasses the frontend cadence", async (t) => {
   assert.equal(await source.load(collect), 1);
   assert.equal(await source.load(collect, true), 2);
 });
+
+function cachedViewer(source, collect, receive = () => {}, error = () => {}) {
+  return createVisiblePoller({
+    load: () => source.load(collect), receive, error,
+    intervalMs: (value) => value.interval,
+    nextAttemptAt: source.nextAttemptAt,
+  });
+}
+
+for (const interval of [5000, 10_000, 60_000]) {
+  test(`reopening a cached ${interval}ms view preserves the original refresh deadline`, async (t) => {
+    clock(t);
+    const source = createSnapshotSource((value) => value.interval);
+    let calls = 0;
+    const collect = async () => ({ interval, reading: ++calls });
+    const first = cachedViewer(source, collect);
+    t.after(() => first.dispose());
+    first.setActive(true); await flush();
+    t.mock.timers.tick(interval - 2000); first.dispose();
+    t.mock.timers.tick(1000);
+    const received = [];
+    const reopened = cachedViewer(source, collect, (value) => received.push(value.reading));
+    t.after(() => reopened.dispose());
+    reopened.setActive(true); await flush();
+    assert.deepEqual(received, [1], "show the retained reading immediately");
+    assert.equal(calls, 1, "reopening must not force another provider request");
+    t.mock.timers.tick(999); await flush(); assert.equal(calls, 1);
+    t.mock.timers.tick(1); await flush();
+    assert.equal(calls, 2, "a cached read must not postpone the due refresh");
+    assert.deepEqual(received, [1, 2]);
+  });
+}
+
+test("viewers opened at different times receive the next shared reading together", async (t) => {
+  clock(t);
+  const source = createSnapshotSource((value) => value.interval);
+  let calls = 0;
+  const collect = async () => ({ interval: 5000, reading: ++calls });
+  const firstReadings = [], secondReadings = [];
+  const first = cachedViewer(source, collect, (value) => firstReadings.push(value.reading));
+  const second = cachedViewer(source, collect, (value) => secondReadings.push(value.reading));
+  t.after(() => { first.dispose(); second.dispose(); });
+  first.setActive(true); await flush();
+  t.mock.timers.tick(2500); second.setActive(true); await flush();
+  assert.equal(calls, 1);
+  t.mock.timers.tick(2500); await flush();
+  assert.equal(calls, 2, "viewers still share one request");
+  assert.deepEqual(firstReadings, [1, 2]);
+  assert.deepEqual(secondReadings, [1, 2], "the later viewer must not remain behind");
+});
+
+test("reopening during shared offline backoff does not postpone recovery", async (t) => {
+  clock(t);
+  const source = createSnapshotSource((value) => value.interval);
+  let calls = 0;
+  const collect = async () => {
+    if (++calls === 1) throw new Error("offline");
+    return { interval: 5000, reading: calls };
+  };
+  const first = cachedViewer(source, collect);
+  t.after(() => first.dispose());
+  first.setActive(true); await flush();
+  t.mock.timers.tick(4000); first.dispose();
+  const received = [];
+  const reopened = cachedViewer(source, collect, (value) => received.push(value.reading));
+  t.after(() => reopened.dispose());
+  reopened.setActive(true); await flush(); assert.equal(calls, 1);
+  t.mock.timers.tick(999); await flush(); assert.equal(calls, 1);
+  t.mock.timers.tick(1); await flush();
+  assert.equal(calls, 2);
+  assert.deepEqual(received, [2]);
+});

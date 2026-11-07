@@ -32,6 +32,7 @@ export function useServerSnapshot() {
       receive(next) { setSnapshot(next); setError(null); setReloading(false); },
       error(cause) { setError(cause instanceof Error ? cause.message : String(cause)); setReloading(false); },
       intervalMs: (next) => next.refreshIntervalMs,
+      nextAttemptAt: source.nextAttemptAt,
     });
     pollerRef.current = poller;
     const update = () => {

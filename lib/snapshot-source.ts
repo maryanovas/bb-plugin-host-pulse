@@ -7,6 +7,9 @@ export function createSnapshotSource<T>(intervalMs: (value: T) => number) {
   let error: unknown;
   return {
     snapshot: () => snapshot,
+    // Viewers can be remounted or opened mid-interval. Reusing a cached value
+    // must preserve its existing refresh/retry deadline instead of restarting it.
+    nextAttemptAt: () => nextAttemptAt,
     load(collect: () => Promise<T>, force = false): Promise<T> {
       if (pending) return pending;
       if (!force && Date.now() < nextAttemptAt) {
