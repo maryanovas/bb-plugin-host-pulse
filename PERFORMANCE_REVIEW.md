@@ -1,5 +1,7 @@
 # Monitoring verification
 
+On 2026-11-07, a second refresh audit reproduced a remaining recovery gap: after five failed requests, a successful manual retry in details updated the shared cache while the card kept its old 60-second retry timer. Active views now subscribe to shared results and errors, consume updated cached readings immediately, and discard obsolete retry deadlines. Hidden views wait until activation and disposed views unsubscribe. Regression tests cover visible recovery, hidden/resumed recovery, and absence of polling after hiding or disposal. The installed browser regression failed on 0.1.7 and passed after the fix: the card recovered 336 ms after the simulated failure and manual retry, before its old five-second retry deadline. All 139 tests passed.
+
 The implementation used for Host Pulse was verified on a Linux host with 16 logical CPUs, BB 0.48.1 and Plugin SDK 0.6.104 on 2026-11-05. These are short local measurements, not a long-running soak test or a performance guarantee.
 
 The production host collector was run with a test SDK, real system counters and a bounded history of 72 readings. Across 100 repeated forced samples, mean collection time was 43.3 ms, median 42.4 ms, p95 53.2 ms and maximum 62.3 ms. The process used about 26 ms CPU per sample; child-process CPU was not measured separately. A preceding run had one unexplained 4.7-second delay that did not recur in the repeat. Full snapshots were approximately 13–14 KB.

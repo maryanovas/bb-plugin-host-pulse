@@ -20,6 +20,7 @@ test("a stalled shared RPC is aborted after thirty seconds and both viewers reco
     load: () => source.load(() => rpc.call("deepseek_balance_snapshot")),
     receive: (value) => values.push(value), error: (error) => errors[index].push(error),
     intervalMs: (value) => value.refreshIntervalMs,
+    nextAttemptAt: source.nextAttemptAt, subscribe: source.subscribe,
   }));
   t.after(() => pollers.forEach((poller) => poller.dispose()));
   pollers.forEach((poller) => poller.setActive(true));
@@ -53,6 +54,7 @@ test("closing one viewer preserves the shared request for the remaining viewer",
     load: () => source.load(() => rpc.call("deepseek_balance_snapshot")),
     receive: (value) => values.push(value), error: assert.fail,
     intervalMs: (value) => value.refreshIntervalMs,
+    nextAttemptAt: source.nextAttemptAt, subscribe: source.subscribe,
   }));
   t.after(() => pollers.forEach((poller) => poller.dispose()));
   pollers.forEach((poller) => poller.setActive(true));

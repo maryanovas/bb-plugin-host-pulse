@@ -217,6 +217,7 @@ function cachedViewer(source, collect, receive = () => {}, error = () => {}) {
     load: () => source.load(collect), receive, error,
     intervalMs: (value) => value.interval,
     nextAttemptAt: source.nextAttemptAt,
+    subscribe: source.subscribe,
   });
 }
 
@@ -282,4 +283,70 @@ test("reopening during shared offline backoff does not postpone recovery", async
   t.mock.timers.tick(1); await flush();
   assert.equal(calls, 2);
   assert.deepEqual(received, [2]);
+});
+
+for (const hidden of [false, true]) {
+  test(`manual recovery reaches a ${hidden ? "hidden then resumed" : "visible"} viewer waiting in long backoff`, async (t) => {
+    clock(t);
+    const source = createSnapshotSource((value) => value.interval);
+    let calls = 0, offline = false, force = false;
+    const collect = async () => {
+      calls++;
+      if (offline) throw new Error("offline");
+      return { interval: 2000, reading: calls };
+    };
+    const received = [], detailsReadings = [];
+    const card = cachedViewer(source, collect, (value) => received.push(value.reading));
+    const details = createVisiblePoller({
+      load: () => { const fresh = force; force = false; return source.load(collect, fresh); },
+      receive: (value) => detailsReadings.push(value.reading), error() {},
+      intervalMs: (value) => value.interval,
+      nextAttemptAt: source.nextAttemptAt, subscribe: source.subscribe,
+    });
+    t.after(() => { card.dispose(); details.dispose(); });
+    card.setActive(true); details.setActive(true); await flush();
+    assert.equal(calls, 1);
+    offline = true;
+    for (const delay of [2000, 5000, 10_000, 20_000, 40_000]) {
+      t.mock.timers.tick(delay); await flush();
+    }
+    assert.equal(calls, 6);
+    assert.equal(source.nextAttemptAt() - Date.now(), 60_000);
+    if (hidden) card.setActive(false);
+    t.mock.timers.tick(1000); offline = false; force = true;
+    details.refresh(); await flush();
+    assert.equal(calls, 7, "manual recovery makes one shared request");
+    assert.deepEqual(detailsReadings, [1, 7]);
+    if (hidden) {
+      assert.deepEqual(received, [1], "a hidden viewer must not consume shared updates");
+      card.setActive(true); await flush();
+    }
+    assert.equal(received.at(-1), 7, "the card must not wait out its old minute-long retry timer");
+    assert.equal(calls, 7, "synchronizing the card must use the cached recovery");
+    t.mock.timers.tick(2000); await flush();
+    assert.equal(calls, 8);
+    assert.equal(received.at(-1), 8);
+    assert.equal(detailsReadings.at(-1), 8);
+  });
+}
+
+test("shared source changes do not wake disposed viewers or create a hidden polling loop", async (t) => {
+  clock(t);
+  const source = createSnapshotSource((value) => value.interval);
+  let calls = 0;
+  const collect = async () => ({ interval: 2000, reading: ++calls });
+  const received = [];
+  const viewer = cachedViewer(source, collect, (value) => received.push(value.reading));
+  t.after(() => viewer.dispose());
+  viewer.setActive(true); await flush(); viewer.setActive(false);
+  await source.load(collect, true); await flush();
+  assert.deepEqual(received, [1]);
+  t.mock.timers.tick(60_000); await flush();
+  assert.equal(calls, 2, "shared updates alone must not start hidden polling");
+  viewer.dispose();
+  await source.load(collect, true); await flush();
+  viewer.setActive(true);
+  t.mock.timers.tick(60_000); await flush();
+  assert.equal(calls, 3);
+  assert.deepEqual(received, [1]);
 });

@@ -5,6 +5,7 @@ export function createVisiblePoller<T>(options: {
   error: (error: unknown) => void;
   intervalMs: (value: T) => number;
   nextAttemptAt?: () => number;
+  subscribe?: (listener: () => void) => () => void;
 }) {
   let active = false;
   let disposed = false;
@@ -49,6 +50,16 @@ export function createVisiblePoller<T>(options: {
     timer = setTimeout(() => { timer = undefined; void poll(); }, delay);
   }
 
+  const unsubscribe = options.subscribe?.(() => {
+    if (disposed) return;
+    clearTimeout(timer);
+    timer = undefined;
+    // Re-read the settled cache immediately while visible, or on the next
+    // activation. A shared update must supersede this viewer's old backoff.
+    nextPollAt = 0;
+    if (active && !pending) void poll();
+  });
+
   return {
     setActive(next: boolean) {
       if (disposed || next === active) return;
@@ -73,11 +84,13 @@ export function createVisiblePoller<T>(options: {
       return true;
     },
     dispose() {
+      if (disposed) return;
       disposed = true;
       active = false;
       generation++;
       clearTimeout(timer);
       timer = undefined;
+      unsubscribe?.();
     },
   };
 }

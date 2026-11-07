@@ -30,7 +30,7 @@ The compact card shows:
 
 It stays visible across BB pages, threads and projects. Visibility and position are saved in this browser's local storage and restored after reload; other devices have their own preferences. If storage is blocked it works until the page reloads. Resizing keeps the card in view. On very narrow cards, metric and provider names stack above their values; quota windows wrap as needed so text stays readable without horizontal scrolling. Large numbers, network rates, process values and balances also wrap when space is tight or text is enlarged. Header controls wrap when necessary to keep the title and status readable alongside larger touch buttons. The card floats within BB, not above other operating-system windows or BB's modal dialogs.
 
-The panel and card share cached readings and in-flight requests. Reopening a view keeps the existing refresh or retry deadline, so showing a cached reading does not postpone the next update. Pinning uses the dashboard refresh interval; hiding both stops dashboard polling, as does hiding the browser tab. It does not enable background monitoring. On connection errors the card marks its numbers as the last reading and retries with backoff. CPU, disk I/O, network rates and the current CPU process need two samples after a cold start.
+The panel and card share cached readings and in-flight requests. Reopening a view keeps the existing refresh or retry deadline, so showing a cached reading does not postpone the next update. A successful manual retry in details also updates the card immediately, even if it was waiting on a longer retry delay. Hidden views receive the latest shared reading when shown again. Pinning uses the dashboard refresh interval; hiding both stops dashboard polling, as does hiding the browser tab. It does not enable background monitoring. On connection errors the card marks its numbers as the last reading and retries with backoff. CPU, disk I/O, network rates and the current CPU process need two samples after a cold start.
 
 ### Provider usage integration
 
@@ -164,7 +164,7 @@ For a UI change, click Host Pulse in the footer, wait for two samples, try a 390
 bb browser-automation run <session> --script-file tests/browser/provider-usage-layout.js --script-host <host-id> --timeout-ms 25000
 ```
 
-`tests/browser/floating-monitor-refresh.js` checks the refresh deadline in the installed UI. It supplies fixed server readings, reopens the card partway through the five-second cache interval, and verifies that the next reading arrives on the original schedule. Run it in the same kind of isolated session:
+`tests/browser/floating-monitor-refresh.js` checks the refresh deadline in the installed UI. It supplies fixed server readings, reopens the card partway through the five-second cache interval, and verifies that the next reading arrives on the original schedule. It then simulates a failed request and checks that a successful manual retry in details immediately restores the card's live status and numbers. Run it in the same kind of isolated session:
 
 ```sh
 bb browser-automation run <session> --script-file tests/browser/floating-monitor-refresh.js --script-host <host-id> --timeout-ms 25000

@@ -21,9 +21,15 @@ const metrics = {
 const key='host-pulse-floating-monitor-v1';
 const saved=await p.evaluate(key=>localStorage.getItem(key),key);
 const calls=[];
+let failNext=false;
 const handler=request=>{
- if(request.url().includes('/plugins/host-pulse/rpc/metrics_snapshot')){
+ if(/\/plugins\/host-pulse\/rpc\/metrics_(snapshot|refresh)$/.test(request.url())){
   const now=Date.now();calls.push(now);
+  if(failNext){
+   failNext=false;
+   void request.respond({status:503,contentType:'application/json',body:JSON.stringify({ok:false,error:{code:'unavailable',message:'Temporary test failure'}})}).catch(()=>{});
+   return;
+  }
   const snapshot={...metrics,timestamp:new Date(now).toISOString(),cpu:{...metrics.cpu,usagePercent:calls.length*10}};
   void request.respond({status:200,contentType:'application/json',body:JSON.stringify({ok:true,result:snapshot})}).catch(()=>{});
  }else void request.continue().catch(()=>{});
@@ -47,6 +53,22 @@ try{
  console.log(JSON.stringify(result));
  if(calls.length<2)throw new Error('CPU remained on its first reading beyond the 5s refresh deadline after reopening');
  if(result.cpu!=='20%')throw new Error('The refreshed CPU reading did not reach the visible card');
+
+ // A successful manual retry in details must also recover the visible card,
+ // even though that card already has its own backoff timer scheduled.
+ failNext=true;
+ await p.waitForFunction(()=>document.querySelector('.host-pulse-float-status')?.textContent==='Retrying',{timeout:6000});
+ const failedAt=calls.at(-1);
+ await click('Open server details');
+ await p.waitForSelector('.host-pulse-details-content',{timeout:3000});
+ await click('Reload server status');
+ await p.waitForFunction(()=>document.querySelector('[aria-label="Reload server status"]')?.getAttribute('aria-busy')==='false',{timeout:3000});
+ const expectedCpu=`${calls.length*10}%`;
+ await p.waitForFunction(expected=>document.querySelector('.host-pulse-float-status')?.textContent==='Live'&&document.querySelector('.host-pulse-float-metric strong')?.textContent===expected,{timeout:1000},expectedCpu);
+ const recoveredAt=Date.now()-failedAt;
+ if(recoveredAt>=4000)throw new Error('The test did not observe recovery before the old retry deadline');
+ console.log(JSON.stringify({manualRecovery:{cpu:expectedCpu,afterFailureMs:recoveredAt,requests:calls.length}}));
+ await click('Close server details');
 }finally{
  await p.setRequestInterception(false);p.off('request',handler);
  await p.evaluate(({key,saved})=>{if(saved===null)localStorage.removeItem(key);else localStorage.setItem(key,saved);},{key,saved});
